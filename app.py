@@ -20,34 +20,16 @@ nltk.download("stopwords")
 nltk.download("wordnet")
 
 # ==============================
-# Page Config
+# Page Config + CSS
 # ==============================
 st.set_page_config(page_title="Fake News Detector", layout="wide")
 
-# ==============================
-# Custom CSS
-# ==============================
 st.markdown(
     """
     <style>
-    /* Page background */
-    .stApp {
-        background: linear-gradient(to right, #f0f8ff, #e6f2ff);
-        color: #000;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    /* Headings */
-    h1, h2, h3 {
-        color: #003366;
-    }
-    /* Buttons */
-    div.stButton > button {
-        background-color: #0066cc;
-        color: white;
-        border-radius: 10px;
-        padding: 0.5em 1em;
-        font-size: 1em;
-    }
+    .stApp {background: linear-gradient(to right, #f0f8ff, #e6f2ff); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;}
+    h1, h2, h3 {color: #003366;}
+    div.stButton > button {background-color: #0066cc; color: white; border-radius: 10px; padding: 0.5em 1em; font-size: 1em;}
     </style>
     """, unsafe_allow_html=True
 )
@@ -59,9 +41,9 @@ st.image("images.jpg", width=150)  # ضع هنا مسار اللوجو الخا�
 st.title("📰 Fake News Detector App")
 
 # ==============================
-# Sidebar Inputs
+# Sidebar: Upload + Options
 # ==============================
-st.sidebar.header("🔧 Options")
+st.sidebar.header("1️⃣ Upload Dataset & Options")
 uploaded = st.sidebar.file_uploader("Upload CSV Dataset", type=["csv"])
 user_text = st.sidebar.text_area("Enter text to predict")
 
@@ -78,17 +60,17 @@ for key in ["df","X_train","X_test","y_train","y_test","tfidf",
         st.session_state[key] = None
 
 # ==============================
-# 1️⃣ Load Dataset
+# Load & Preview Dataset
 # ==============================
-st.header("1️⃣ Load Dataset")
 if uploaded is not None:
     df = pd.read_csv(uploaded, on_bad_lines="skip", engine="python")
     df.dropna(inplace=True)
     st.session_state.df = df
-    st.success("✅ Dataset Loaded!")
-    st.dataframe(df.head())
+    st.sidebar.success("✅ Dataset Loaded!")
+    st.sidebar.subheader("Preview")
+    st.sidebar.dataframe(df.head())
 else:
-    st.info("Upload a dataset to start.")
+    st.sidebar.info("Upload a dataset to start.")
 
 # ==============================
 # 2️⃣ Preprocess & Clean Text
