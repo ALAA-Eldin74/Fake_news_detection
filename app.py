@@ -20,66 +20,80 @@ nltk.download("stopwords")
 nltk.download("wordnet")
 
 # ==============================
-# Page Config + Custom CSS
+# Page Config
 # ==============================
 st.set_page_config(page_title="Fake News Detector", layout="wide")
 
+# ==============================
+# Custom CSS
+# ==============================
 st.markdown(
     """
     <style>
-    /* Background transparent */
+    /* Page background */
     .stApp {
-        background: rgba(255, 255, 255, 0.05);
+        background: linear-gradient(to right, #f0f8ff, #e6f2ff);
         color: #000;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    /* Headings style */
+    /* Headings */
     h1, h2, h3 {
-        color: #1f77b4;
+        color: #003366;
     }
-    /* Buttons style */
+    /* Buttons */
     div.stButton > button {
-        background-color: #1f77b4;
+        background-color: #0066cc;
         color: white;
         border-radius: 10px;
         padding: 0.5em 1em;
         font-size: 1em;
     }
     </style>
-    """,
-    unsafe_allow_html=True,
+    """, unsafe_allow_html=True
 )
 
+# ==============================
+# Logo + Title
+# ==============================
+st.image("", width=150)  # ضع هنا مسار اللوجو الخاص بك
 st.title("📰 Fake News Detector App")
 
+# ==============================
+# Sidebar Inputs
+# ==============================
+st.sidebar.header("🔧 Options")
+uploaded = st.sidebar.file_uploader("Upload CSV Dataset", type=["csv"])
+user_text = st.sidebar.text_area("Enter text to predict")
+
+train_log = st.sidebar.button("Train Logistic Regression")
+train_svc = st.sidebar.button("Train SVM (Linear)")
+predict_btn = st.sidebar.button("Predict Text")
 
 # ==============================
-# GLOBAL SESSION STATE
+# Session State
 # ==============================
 for key in ["df","X_train","X_test","y_train","y_test","tfidf",
             "log_model","svc_model","X_train_vec","X_test_vec"]:
     if key not in st.session_state:
         st.session_state[key] = None
 
-
 # ==============================
-# 1) Load Dataset
+# 1️⃣ Load Dataset
 # ==============================
 st.header("1️⃣ Load Dataset")
-uploaded = st.file_uploader("Upload your CSV file", type=["csv"])
-
 if uploaded is not None:
     df = pd.read_csv(uploaded, on_bad_lines="skip", engine="python")
     df.dropna(inplace=True)
     st.session_state.df = df
-    st.success("✅ Dataset Loaded Successfully!")
+    st.success("✅ Dataset Loaded!")
     st.dataframe(df.head())
-
+else:
+    st.info("Upload a dataset to start.")
 
 # ==============================
-# 2) Preprocessing
+# 2️⃣ Preprocess & Clean Text
 # ==============================
-st.header("2️⃣ Preprocess & Clean Text")
+st.header("2️⃣ Preprocess Text")
 if st.session_state.df is not None:
     df = st.session_state.df.copy()
     df["title"] = df["title"].fillna("")
@@ -99,41 +113,34 @@ if st.session_state.df is not None:
     text = text.apply(lambda w: [lemmatizer.lemmatize(x) for x in w])
     text = text.apply(lambda w: " ".join(w))
     df["clean"] = text
-
     st.session_state.df = df
-    st.success("✅ Cleaning Completed Successfully!")
-    st.dataframe(df[["clean", "label"]].head())
+    st.success("✅ Text Cleaning Completed!")
+    st.dataframe(df[["clean","label"]].head())
 else:
-    st.info("Please upload a dataset first.")
-
+    st.info("Upload dataset first.")
 
 # ==============================
-# 3) Split Data
+# 3️⃣ Split Train/Test
 # ==============================
-st.header("3️⃣ Split Train/Test")
+st.header("3️⃣ Split Data")
 if st.session_state.df is not None:
     df = st.session_state.df
     X = df["clean"]
     y = df["label"]
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
     st.session_state.X_train = X_train
     st.session_state.X_test = X_test
     st.session_state.y_train = y_train
     st.session_state.y_test = y_test
-
-    st.success("✅ Data split completed!")
+    st.success("✅ Train/Test Split Done!")
     st.write("Train size:", len(X_train))
     st.write("Test size:", len(X_test))
-else:
-    st.info("Clean the data first.")
-
 
 # ==============================
-# 4) TF-IDF Vectorizer
+# 4️⃣ TF-IDF Vectorizer
 # ==============================
-st.header("4️⃣ Train TF-IDF Vectorizer")
+st.header("4️⃣ TF-IDF Vectorizer")
 if st.session_state.X_train is not None:
     tfidf = TfidfVectorizer(max_features=50, ngram_range=(1,2))
     X_train_vec = tfidf.fit_transform(st.session_state.X_train)
@@ -143,101 +150,79 @@ if st.session_state.X_train is not None:
     st.session_state.X_train_vec = X_train_vec
     st.session_state.X_test_vec = X_test_vec
 
-    st.success("✅ TF-IDF trained successfully!")
+    st.success("✅ TF-IDF Trained!")
     st.write("Train Matrix Shape:", X_train_vec.shape)
     st.write("Test Matrix Shape:", X_test_vec.shape)
-    st.subheader("Top 50 Words/Terms")
-    st.write(tfidf.get_feature_names_out())
 else:
-    st.info("Split the data first.")
-
+    st.info("Split data first.")
 
 # ==============================
-# 5) Train Models
+# 5️⃣ Train Models
 # ==============================
-st.header("5️⃣ Train ML Models")
+st.header("5️⃣ Train Models")
 col1, col2 = st.columns(2)
 
-# Logistic Regression
 with col1:
-    if st.button("Train Logistic Regression"):
+    if train_log:
         if st.session_state.X_train_vec is not None:
             log_model = LogisticRegression()
             log_model.fit(st.session_state.X_train_vec, st.session_state.y_train)
             st.session_state.log_model = log_model
-            st.success("✅ Logistic Regression Trained ✔")
+            st.success("✅ Logistic Regression Trained")
         else:
             st.info("Train TF-IDF first.")
 
-# SVM
 with col2:
-    if st.button("Train SVM (Linear)"):
+    if train_svc:
         if st.session_state.X_train_vec is not None:
-            svc = SVC(kernel="linear")
-            svc.fit(st.session_state.X_train_vec, st.session_state.y_train)
-            st.session_state.svc_model = svc
-            st.success("✅ SVM Trained ✔")
+            svc_model = SVC(kernel="linear")
+            svc_model.fit(st.session_state.X_train_vec, st.session_state.y_train)
+            st.session_state.svc_model = svc_model
+            st.success("✅ SVM Trained")
         else:
             st.info("Train TF-IDF first.")
-
 
 # ==============================
-# 6) Evaluate Models
+# 6️⃣ Evaluate Models
 # ==============================
 st.header("6️⃣ Evaluate Models")
-if st.session_state.log_model is not None and st.session_state.svc_model is not None:
-    X_test = st.session_state.X_test_vec
+if st.session_state.log_model and st.session_state.svc_model:
+    X_test_vec = st.session_state.X_test_vec
     y_test = st.session_state.y_test
 
-    # Logistic
-    pred_log = st.session_state.log_model.predict(X_test)
-    acc_log = accuracy_score(y_test, pred_log)
-    rec_log = recall_score(y_test, pred_log)
-    f1_log = f1_score(y_test, pred_log)
+    pred_log = st.session_state.log_model.predict(X_test_vec)
+    pred_svc = st.session_state.svc_model.predict(X_test_vec)
 
-    # SVC
-    pred_svc = st.session_state.svc_model.predict(X_test)
-    acc_svc = accuracy_score(y_test, pred_svc)
-    rec_svc = recall_score(y_test, pred_svc)
-    f1_svc = f1_score(y_test, pred_svc)
+    metrics_df = pd.DataFrame({
+        "Model": ["Logistic", "SVM"],
+        "Accuracy": [accuracy_score(y_test, pred_log), accuracy_score(y_test, pred_svc)],
+        "Recall": [recall_score(y_test, pred_log), recall_score(y_test, pred_svc)],
+        "F1 Score": [f1_score(y_test, pred_log), f1_score(y_test, pred_svc)]
+    })
+    st.subheader("📊 Metrics")
+    st.dataframe(metrics_df)
 
-    st.subheader("📊 Results")
-    st.write(
-        pd.DataFrame({
-            "Model": ["Logistic", "SVM"],
-            "Accuracy": [acc_log, acc_svc],
-            "Recall": [rec_log, rec_svc],
-            "F1 Score": [f1_log, f1_svc]
-        })
-    )
-
-    # Confusion Matrix
     st.subheader("Confusion Matrix (SVM)")
     cm = confusion_matrix(y_test, pred_svc)
     fig, ax = plt.subplots()
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax)
     st.pyplot(fig)
 else:
-    st.info("Train both models first.")
-
+    st.info("Train both models to evaluate.")
 
 # ==============================
-# 7) Predict User Text
+# 7️⃣ Predict User Text
 # ==============================
-st.header("7️⃣ Try Your Own Text")
-user_text = st.text_area("Enter news text to check if it’s FAKE or REAL")
-
-if st.button("Predict Text"):
-    if st.session_state.tfidf is not None and st.session_state.svc_model is not None:
+st.header("7️⃣ Predict Your Text")
+if predict_btn:
+    if st.session_state.tfidf and st.session_state.svc_model:
         clean = user_text.lower()
         clean = re.sub(r"http\S+", "", clean)
         clean = re.sub(f"[{string.punctuation}]", "", clean)
         clean = re.sub(r"\d+", "", clean)
-
         vect = st.session_state.tfidf.transform([clean])
         pred = st.session_state.svc_model.predict(vect)[0]
-        label = "REAL" if pred == 1 else "FAKE"
-
+        label = "REAL" if pred==1 else "FAKE"
         st.success(f"Prediction: **{label}**")
     else:
         st.info("Train models first.")
